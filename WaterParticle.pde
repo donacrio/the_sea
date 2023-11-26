@@ -1,6 +1,7 @@
 float MAX_VELOCITY = 2;
-float MAX_STEER_FORCE = 1.5;
-float VISIBILITY_DISTANCE = 15;
+float MAX_STEER_FLOW = 1.7;
+float MAX_STEER_OBSTACLE = 1.7;
+float VISIBILITY_DISTANCE = 10;
 
 class WaterParticle {
   ArrayList<Coordinate> path;
@@ -9,17 +10,20 @@ class WaterParticle {
   Vector2D acceleration;
   double angle;
   double maxVelocity;
-  double maxSteerForce;
+  double maxSteerFlow;
+  double maxSteerObstacle;
   double visibilityDistance;
   
-  WaterParticle(double x, double y) {
+  WaterParticle(Coordinate position) {
     this.path = new ArrayList<Coordinate>();
-    this.position = new Vector2D(x, y);
+    this.path.add(position);
+    this.position = Vector2D.create(position);
     this.velocity = new Vector2D();
     this.acceleration = new Vector2D();
     this.angle = Angle.normalizePositive(this.velocity.angle());
     this.maxVelocity = MAX_VELOCITY;
-    this.maxSteerForce = MAX_STEER_FORCE;
+    this.maxSteerFlow= MAX_STEER_FLOW;
+    this.maxSteerObstacle= MAX_STEER_OBSTACLE;
     this.visibilityDistance = VISIBILITY_DISTANCE;
   }
   
@@ -38,27 +42,29 @@ class WaterParticle {
     Vector2D desiredVelocity = Vector2D.create(0, this.maxVelocity);
     desiredVelocity = desiredVelocity.rotate(angle);
     Vector2D steerForce = desiredVelocity.subtract(this.velocity);
-    if(steerForce.length() > this.maxSteerForce) {
-      steerForce = steerForce.normalize().multiply(this.maxSteerForce);
+    if(steerForce.length() > this.maxSteerFlow) {
+      steerForce = steerForce.normalize().multiply(this.maxSteerFlow);
     }
     this.applyForce(steerForce);
   }
   
-  void avoid(Geometry obstacle) {
+  void avoid(Obstacle obstacle) {
     Coordinate position = this.position.toCoordinate();
-    Coordinate[] closestPoints = new DistanceOp(GF.createPoint(position), obstacle).nearestPoints();
+    Coordinate[] closestPoints = new DistanceOp(GF.createPoint(position), obstacle.geometry).nearestPoints();
     Coordinate closestPoint = closestPoints[0];
     if(closestPoint == position) {
       closestPoint = closestPoints[1];
     }
     Vector2D obstaclePosition = Vector2D.create(closestPoint);
     
-    Vector2D desiredPosition = obstaclePosition.subtract(this.position);
-    double distance = desiredPosition.length();
+    Vector2D desiredVelocity = obstaclePosition.subtract(this.position);
+    double distance = desiredVelocity.length();
     if(distance < this.visibilityDistance) {
-      Vector2D steerForce = desiredPosition.subtract(this.velocity);
-      if(steerForce.length() > this.maxSteerForce) {
-        steerForce = steerForce.normalize().multiply(this.maxSteerForce);
+      double velocityFactor = map((float) distance, 0,(float) this.visibilityDistance, -5, -2);
+      desiredVelocity = desiredVelocity.multiply(velocityFactor);
+      Vector2D steerForce = desiredVelocity.subtract(this.velocity);
+      if(steerForce.length() > this.maxSteerObstacle) {
+        steerForce = steerForce.normalize().multiply(this.maxSteerObstacle);
       }
       this.applyForce(steerForce);
     }
