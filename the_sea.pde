@@ -3,10 +3,10 @@ int WIDTH = 1080;
 int HEIGHT = 765;
 float MARGIN_FACTOR = 0.10; // Take a margin to let flows evolve
 // FLOW GENERATION
-float PERLIN_FACTOR = 0.0025;
+float PERLIN_FACTOR = 0.005;
 // AGENTS
 int N_WATER_PARTICLES = 7000;
-int N_STEPS = 15;
+int N_STEPS = 10;
 
 GeometryFactory GF;
 void setup() {
@@ -42,12 +42,33 @@ void setup() {
   for(int i=0; i<N_WATER_PARTICLES; i++) {
     // TODO : avoid generating inside obstacles
     Point position = GF.createPoint(new Coordinate(random(min_x, max_x), random(min_y, max_y)));
-    for(Obstacle obstacle : obstacles) {
-      while(obstacle.geometry.contains(position)) {
-        position = GF.createPoint(new Coordinate(random(min_x, max_x), random(min_y, max_y)));
+    boolean isValid = false;
+    while(!isValid) {
+      isValid = true;
+      position = GF.createPoint(new Coordinate(random(min_x, max_x), random(min_y, max_y)));
+      for(Obstacle obstacle : obstacles) {
+        if(obstacle.geometry.contains(position)) {
+          isValid = false;
+        }
       }
     }
-    waterParticles.add(new WaterParticle(position.getCoordinate()));
+    
+    WaterParticle waterParticle = new WaterParticle(position.getCoordinate());
+    for(int j=0; j<N_STEPS; j++) {
+      if(waterParticle.position.getX() >= 0
+        && waterParticle.position.getX() < WIDTH
+        && waterParticle.position.getY() >= 0
+        && waterParticle.position.getY() < HEIGHT
+      ){
+        float angle = waterFlow[(int) waterParticle.position.getX()][(int) waterParticle.position.getY()];
+        waterParticle.follow(angle);
+        for(Obstacle obstacle : obstacles) {
+          waterParticle.avoid(obstacle);
+        }
+        waterParticle.update();
+      }
+    }
+    waterParticles.add(waterParticle);
   }
   
   for(int i=0; i<N_STEPS; i++) {

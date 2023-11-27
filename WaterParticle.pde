@@ -60,7 +60,7 @@ class WaterParticle {
     Vector2D desiredVelocity = obstaclePosition.subtract(this.position);
     double distance = desiredVelocity.length();
     if(distance < this.visibilityDistance) {
-      double velocityFactor = map((float) distance, 0,(float) this.visibilityDistance, -5, -2);
+      double velocityFactor = map((float) distance, 0,(float) this.visibilityDistance, -5, -2) / distance;
       desiredVelocity = desiredVelocity.multiply(velocityFactor);
       Vector2D steerForce = desiredVelocity.subtract(this.velocity);
       if(steerForce.length() > this.maxSteerObstacle) {
