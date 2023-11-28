@@ -17,6 +17,7 @@ class WaterParticle {
   WaterParticle(Coordinate position) {
     this.path = new ArrayList<Coordinate>();
     this.path.add(position);
+    this.path.add(position);
     this.position = Vector2D.create(position);
     this.velocity = new Vector2D();
     this.acceleration = new Vector2D();
@@ -68,5 +69,9 @@ class WaterParticle {
       }
       this.applyForce(steerForce);
     }
+  }
+  
+  LineString getLineString() {
+    return GF.createLineString(this.path.toArray(new Coordinate[0]));
   }
 }

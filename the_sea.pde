@@ -1,12 +1,18 @@
+import processing.svg.*;
+
 // DIMENSIONS
 int WIDTH = 1080;
 int HEIGHT = 765;
-float MARGIN_FACTOR = 0.10; // Take a margin to let flows evolve
+float MARGIN_FACTOR = 0.20; // Take a margin to let flows evolve
 // FLOW GENERATION
-float PERLIN_FACTOR = 0.005;
+float PERLIN_FACTOR = 0.01;
 // AGENTS
-int N_WATER_PARTICLES = 7000;
-int N_STEPS = 10;
+int N_WATER_PARTICLES = 1000;
+int N_AGENT_CREATION_RETRIES = 50;
+int N_STEPS = 50;
+float PARTICLE_WEIGHT = 4;
+// OBSTACLES
+int N_OBSTACLES = 0;
 
 GeometryFactory GF;
 void setup() {
@@ -31,63 +37,41 @@ void setup() {
   
   // Obstacles
   ArrayList<Obstacle> obstacles = new ArrayList<Obstacle>();
-  for(int i=0; i<5; i++) {
+  for(int i=0; i<N_OBSTACLES; i++) {
     // TODO: avoid obstacle self collision
     obstacles.add(new Obstacle(new Coordinate(random(min_x, max_x), random(min_y, max_y)), 75));
   }
   
-  // Autonomous agent with repeling force
-  // TODO: line packing
+  // Autonomous agents
   ArrayList<WaterParticle> waterParticles = new ArrayList<WaterParticle>();
   for(int i=0; i<N_WATER_PARTICLES; i++) {
-    // TODO : avoid generating inside obstacles
-    Point position = GF.createPoint(new Coordinate(random(min_x, max_x), random(min_y, max_y)));
+    // Generating point outside of obstacles and other particles
+    WaterParticle waterParticle = null;
     boolean isValid = false;
-    while(!isValid) {
-      isValid = true;
-      position = GF.createPoint(new Coordinate(random(min_x, max_x), random(min_y, max_y)));
-      for(Obstacle obstacle : obstacles) {
-        if(obstacle.geometry.contains(position)) {
-          isValid = false;
-        }
-      }
+    int attempt = 0;
+    while(!isValid && attempt < N_AGENT_CREATION_RETRIES) {
+      waterParticle = new WaterParticle(new Coordinate(random(min_x, max_x), random(min_y, max_y)));
+      isValid = isValid(waterParticle, obstacles, waterParticles);
+      attempt++;
     }
     
-    WaterParticle waterParticle = new WaterParticle(position.getCoordinate());
-    for(int j=0; j<N_STEPS; j++) {
-      if(waterParticle.position.getX() >= 0
-        && waterParticle.position.getX() < WIDTH
-        && waterParticle.position.getY() >= 0
-        && waterParticle.position.getY() < HEIGHT
-      ){
+    if(waterParticle != null) {
+      int step = 0;
+      while(isValid && step < N_STEPS) {
         float angle = waterFlow[(int) waterParticle.position.getX()][(int) waterParticle.position.getY()];
         waterParticle.follow(angle);
         for(Obstacle obstacle : obstacles) {
           waterParticle.avoid(obstacle);
         }
         waterParticle.update();
+        step++;
+        isValid = isValid(waterParticle, obstacles, waterParticles);
       }
-    }
-    waterParticles.add(waterParticle);
-  }
-  
-  for(int i=0; i<N_STEPS; i++) {
-    for(WaterParticle waterParticle : waterParticles) {
-      if(waterParticle.position.getX() >= 0
-        && waterParticle.position.getX() < WIDTH
-        && waterParticle.position.getY() >= 0
-        && waterParticle.position.getY() < HEIGHT
-      ){
-        float angle = waterFlow[(int) waterParticle.position.getX()][(int) waterParticle.position.getY()];
-        waterParticle.follow(angle);
-        for(Obstacle obstacle : obstacles) {
-          waterParticle.avoid(obstacle);
-        }
-        waterParticle.update();
-      }
+      waterParticles.add(waterParticle);
     }
   }
   
+  beginRecord(SVG, "out/final.svg");
   background(234,230,218);
   
   for(Obstacle obstacle : obstacles) {
@@ -99,11 +83,11 @@ void setup() {
     }
     endShape();
   }
-  
+
   for(WaterParticle waterParticle : waterParticles) {
     noFill();
     stroke(0, 76, 92);
-    strokeWeight(1);
+    strokeWeight(PARTICLE_WEIGHT);
     beginShape();
     for(Coordinate coord : waterParticle.path) {
       vertex((float) coord.x, (float) coord.y);
@@ -111,7 +95,34 @@ void setup() {
     endShape();
   }
   
+  endRecord();
   noLoop();
+}
+
+boolean isValid(WaterParticle waterParticle, ArrayList<Obstacle> obstacles, ArrayList<WaterParticle> waterParticles) {
+  Point position = GF.createPoint(waterParticle.position.toCoordinate());
+  if(
+    waterParticle.position.getX() < 0
+    || waterParticle.position.getX() >= WIDTH
+    || waterParticle.position.getY() < 0
+    || waterParticle.position.getY() >= HEIGHT
+  ) {
+    return false;
+  }
+  for(Obstacle obstacle : obstacles) {
+    if(obstacle.geometry.contains(position)) {
+      return false;
+    }
+  }
+  for(WaterParticle other : waterParticles) {
+    if(
+      waterParticle != other
+      && DistanceOp.isWithinDistance(position, other.getLineString(), (double) 2*PARTICLE_WEIGHT)
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void draw() {}
