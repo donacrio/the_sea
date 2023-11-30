@@ -1,8 +1,9 @@
 float MAX_VELOCITY = 2;
 float MAX_STEER_FLOW = 1.7;
 float MAX_STEER_OBSTACLE = 1.7;
-float VISIBILITY_DISTANCE = 10;
+float VISIBILITY_DISTANCE = 20;
 
+// TODO: grow both directions ?
 class WaterParticle {
   ArrayList<Coordinate> path;
   Vector2D position;
@@ -26,6 +27,10 @@ class WaterParticle {
     this.maxSteerFlow= MAX_STEER_FLOW;
     this.maxSteerObstacle= MAX_STEER_OBSTACLE;
     this.visibilityDistance = VISIBILITY_DISTANCE;
+  }
+  
+  Coordinate getNextPosition() {
+    return this.position.add(this.velocity.add(this.acceleration)).toCoordinate();
   }
   
   void update() {
@@ -61,7 +66,8 @@ class WaterParticle {
     Vector2D desiredVelocity = obstaclePosition.subtract(this.position);
     double distance = desiredVelocity.length();
     if(distance < this.visibilityDistance) {
-      double velocityFactor = map((float) distance, 0,(float) this.visibilityDistance, -5, -2) / distance;
+      double velocityFactor = map((float) distance, 0,(float) this.visibilityDistance, -5, -2);
+      velocityFactor = velocityFactor * 100 / distance;
       desiredVelocity = desiredVelocity.multiply(velocityFactor);
       Vector2D steerForce = desiredVelocity.subtract(this.velocity);
       if(steerForce.length() > this.maxSteerObstacle) {
